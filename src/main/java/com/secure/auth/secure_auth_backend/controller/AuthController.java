@@ -3,7 +3,9 @@ package com.secure.auth.secure_auth_backend.controller;
 
 import com.secure.auth.secure_auth_backend.dto.auth.AuthResponseDto;
 import com.secure.auth.secure_auth_backend.dto.auth.LoginRequestDto;
+import com.secure.auth.secure_auth_backend.dto.auth.RegisterRequestDto;
 import com.secure.auth.secure_auth_backend.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,7 +22,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto request) {
         log.info("Login attempt for email={}", request.getEmail());
 
         try {
@@ -34,6 +36,25 @@ public class AuthController {
 
         } catch (Exception ex) {
             log.error("Unexpected error during login for email={}", request.getEmail(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
+        log.info("REST /api/auth/register called for email={}", request.getEmail());
+
+        try {
+            AuthResponseDto response = authService.register(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+        } catch (IllegalArgumentException ex) {
+            // email already exists
+            log.warn("Registration failed for email={}: {}", request.getEmail(), ex.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+
+        } catch (Exception ex) {
+            log.error("Unexpected error during registration for email={}", request.getEmail(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
