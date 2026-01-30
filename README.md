@@ -1,7 +1,7 @@
 <h1>Secure Auth Backend</h1>
 
 <p>
-  Simple Spring Boot backend that demonstrates 
+  Spring Boot backend that demonstrates 
   <strong>JWT authentication</strong>, 
   <strong>Google OAuth2 login</strong> 
   and <strong>role-based access control</strong>.
