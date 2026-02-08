@@ -30,13 +30,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
 
-        // Если нет заголовка или он не Bearer – просто идём дальше
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String jwt = authHeader.substring(7); // после "Bearer "
+        String jwt = authHeader.substring(7);
         String username;
 
         try {
