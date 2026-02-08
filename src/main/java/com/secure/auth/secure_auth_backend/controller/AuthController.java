@@ -4,6 +4,7 @@ package com.secure.auth.secure_auth_backend.controller;
 import com.secure.auth.secure_auth_backend.dto.auth.AuthResponseDto;
 import com.secure.auth.secure_auth_backend.dto.auth.LoginRequestDto;
 import com.secure.auth.secure_auth_backend.dto.auth.RegisterRequestDto;
+import com.secure.auth.secure_auth_backend.dto.auth.TwoFactorLoginRequestDto;
 import com.secure.auth.secure_auth_backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,22 @@ public class AuthController {
 
         } catch (Exception ex) {
             log.error("Unexpected error during registration for email={}", request.getEmail(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/login/2fa")
+    public ResponseEntity<AuthResponseDto> loginWithTwoFactor(@Valid @RequestBody TwoFactorLoginRequestDto request) {
+        try {
+            AuthResponseDto response = authService.loginWithTwoFactor(
+                    request.getTempToken(),
+                    request.getCode()
+            );
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        } catch (Exception ex) {
+            log.error("Unexpected error during 2FA login", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -22,7 +22,10 @@ public class JwtService {
     private String jwtSecret;
 
     @Value("${jwt.expiration-seconds}")
-    private long jwtExpirationMs;
+    private long jwtExpirationSeconds;
+
+    @Value("${jwt.two-factor-expiration-seconds:300}")
+    private long twoFactorExpirationSeconds;
 
     private SecretKey signingKey;
 
@@ -30,14 +33,28 @@ public class JwtService {
         return parseClaims(token).getSubject();
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateAccessToken(UserDetails userDetails) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + jwtExpirationMs);
+        Date expiry = new Date(now.getTime() + (jwtExpirationSeconds * 1000));
 
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .issuedAt(now)
                 .expiration(expiry)
+                .claim("typ", "ACCESS")
+                .signWith(signingKey)
+                .compact();
+    }
+
+    public String generateTwoFactorToken(UserDetails userDetails) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + (twoFactorExpirationSeconds * 1000));
+
+        return Jwts.builder()
+                .subject(userDetails.getUsername())
+                .issuedAt(now)
+                .expiration(expiry)
+                .claim("typ", "TWO_FACTOR")
                 .signWith(signingKey)
                 .compact();
     }
@@ -58,13 +75,31 @@ public class JwtService {
         }
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public boolean isAccessTokenValid(String token, UserDetails userDetails) {
         try {
             String username = extractUsername(token);
-            return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+            return username.equals(userDetails.getUsername())
+                    && isTokenType(token, "ACCESS")
+                    && !isTokenExpired(token);
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    public boolean isTwoFactorTokenValid(String token, UserDetails userDetails) {
+        try {
+            String username = extractUsername(token);
+            return username.equals(userDetails.getUsername())
+                    && isTokenType(token, "TWO_FACTOR")
+                    && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public boolean isTokenType(String token, String type) {
+        String tokenType = parseClaims(token).get("typ", String.class);
+        return type.equals(tokenType);
     }
 
     private Claims parseClaims(String token) {

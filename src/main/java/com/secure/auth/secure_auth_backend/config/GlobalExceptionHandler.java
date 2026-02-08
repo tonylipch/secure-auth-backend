@@ -54,6 +54,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<ErrorResponse> handleIllegalState(RuntimeException ex) {
+        ErrorResponse body = new ErrorResponse(
+                Instant.now().toString(),
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                Map.of()
+        );
+
+        log.warn("Bad request: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @Data
     public static class ErrorResponse {
         private final String timestamp;

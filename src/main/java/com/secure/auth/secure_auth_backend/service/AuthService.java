@@ -13,9 +13,7 @@ import com.secure.auth.secure_auth_backend.security.CustomUserDetails;
 import com.secure.auth.secure_auth_backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -35,6 +33,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TwoFactorService twoFactorService;
 
     public AuthResponseDto login(LoginRequestDto request) {
         Authentication authentication;
@@ -55,8 +54,15 @@ public class AuthService {
         }
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        String token = jwtService.generateToken(userDetails);
-        return new AuthResponseDto(token, "Bearer");
+        User user = userDetails.getUser();
+
+        if (user.isTwoFactorEnabled()) {
+            String tempToken = jwtService.generateTwoFactorToken(userDetails);
+            return new AuthResponseDto(null, null, true, tempToken);
+        }
+
+        String token = jwtService.generateAccessToken(userDetails);
+        return new AuthResponseDto(token, "Bearer", false, null);
     }
 
     public AuthResponseDto register(RegisterRequestDto request) {
@@ -88,8 +94,37 @@ public class AuthService {
 
         //generate token for usual login
         CustomUserDetails userDetails = new CustomUserDetails(user);
-        String token = jwtService.generateToken(userDetails);
+        String token = jwtService.generateAccessToken(userDetails);
 
-        return new AuthResponseDto(token, "Bearer");
+        return new AuthResponseDto(token, "Bearer", false, null);
+    }
+
+    public AuthResponseDto loginWithTwoFactor(String tempToken, String code) {
+        String email;
+        try {
+            email = jwtService.extractUsername(tempToken);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid temp token");
+        }
+        CustomUserDetails userDetails = (CustomUserDetails) userRepository.findByEmail(email)
+                .map(CustomUserDetails::new)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!jwtService.isTwoFactorTokenValid(tempToken, userDetails)) {
+            throw new IllegalArgumentException("Invalid temp token");
+        }
+
+        User user = userDetails.getUser();
+        if (!user.isTwoFactorEnabled() || user.getTwoFactorSecret() == null) {
+            throw new IllegalStateException("2FA is not enabled");
+        }
+
+        boolean valid = twoFactorService.isCodeValid(user.getTwoFactorSecret(), code, 1);
+        if (!valid) {
+            throw new IllegalArgumentException("Invalid OTP code");
+        }
+
+        String token = jwtService.generateAccessToken(userDetails);
+        return new AuthResponseDto(token, "Bearer", false, null);
     }
 }

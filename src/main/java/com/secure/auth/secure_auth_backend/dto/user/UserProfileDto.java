@@ -13,4 +13,5 @@ public class UserProfileDto {
     private String firstName;
     private String lastName;
     private Set<String> roles;
+    private boolean twoFactorEnabled;
 }
