@@ -13,6 +13,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.assertj.core.api.Assertions.assertThat;
+
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -175,6 +179,36 @@ class AuthAndUserControllerTests {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + fakeToken))
                 .andExpect(status().isForbidden());
     }
+
+    // ---------- OAuth2 ----------
+    @Test
+    void oauth2Authorization_redirectsToGoogle() throws Exception {
+        mockMvc.perform(get("/oauth2/authorization/google"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().exists("Location"))
+                .andExpect(header().string("Location",
+                        org.hamcrest.Matchers.containsString("accounts.google.com")));
+    }
+
+    @Test
+    void oauth2Callback_redirects_withoutValidCode() throws Exception {
+        mockMvc.perform(get("/login/oauth2/code/google")
+                        .param("code", "invalid-code"))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
+    void oauth2Endpoints_arePublic() throws Exception {
+        mockMvc.perform(get("/oauth2/authorization/google"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/login/oauth2/code/google"))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    assertThat(status).isNotEqualTo(403);
+                });
+    }
+
 
     @Test
     void register_returns201_andToken_forValidData() throws Exception {

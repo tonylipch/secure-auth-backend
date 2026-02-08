@@ -40,7 +40,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
         String email = oAuth2User.getAttribute("email");
-        String providerId = oAuth2User.getAttribute("sub");     // <-- добавить
+        String providerId = oAuth2User.getAttribute("sub");
         String givenName = Optional
                 .ofNullable(oAuth2User.<String>getAttribute("given_name"))
                 .orElse("");
