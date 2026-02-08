@@ -35,11 +35,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             HttpServletRequest request,
             HttpServletResponse response,
             Authentication authentication
-    ) throws IOException, ServletException {
+    ) throws IOException {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
         String email = oAuth2User.getAttribute("email");
+        String providerId = oAuth2User.getAttribute("sub");     // <-- добавить
         String givenName = Optional
                 .ofNullable(oAuth2User.<String>getAttribute("given_name"))
                 .orElse("");
@@ -49,38 +50,30 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         log.info("Successful Google login for email={}", email);
 
-        // 1. ищем пользователя по email
+        // Ищем юзера по email
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> {
                     log.info("No local user for {}, creating new with provider=GOOGLE", email);
                     Role userRole = roleRepository.findByName("ROLE_USER")
                             .orElseThrow(() -> new IllegalStateException("ROLE_USER not found"));
-                    User newUser = User.builder()
+                    return userRepository.save(User.builder()
                             .email(email)
                             .firstName(givenName)
                             .lastName(familyName)
                             .enabled(true)
                             .locked(false)
                             .provider(AuthProvider.GOOGLE)
+                            .providerId(providerId)
                             .roles(Set.of(userRole))
-                            .build();
-                    return userRepository.save(newUser);
+                            .build());
                 });
-
-
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String token = jwtService.generateToken(userDetails);
 
-
-        String json = """
-                {
-                  "accessToken": "%s",
-                  "tokenType": "Bearer"
-                }
-                """.formatted(token);
-
         response.setContentType("application/json");
-        response.getWriter().write(json);
+        response.getWriter().write("""
+                {"accessToken": "%s", "tokenType": "Bearer"}
+                """.formatted(token));
         response.getWriter().flush();
     }
 }

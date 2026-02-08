@@ -21,7 +21,7 @@ public class User {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String password;
 
     @Column(name = "first_name", length = 100)
@@ -49,7 +49,7 @@ public class User {
 
     @Column(name = "two_factor_secret")
     private String twoFactorSecret;
-    
+
     @Column(name = "two_factor_confirmed_at")
     private LocalDateTime twoFactorConfirmedAt;
 
